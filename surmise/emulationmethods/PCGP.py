@@ -44,6 +44,18 @@ def fit(fitinfo, x, theta, f, args=None):
     '''
 
     f = f.T
+    
+    # Storing these values for future reference
+    fitinfo['x'] = x
+    fitinfo['theta'] = theta
+    fitinfo['f'] = f
+    fitinfo['epsilon'] = 1
+    # The double underline should be used to represent my local functions
+    #__standardizef(fitinfo)
+    #__PCs(fitinfo)
+    #numpcs = fitinfo['pc'].shape[1]
+    
+    
     fitinfo['offset'] = np.zeros(f.shape[1])
     fitinfo['scale'] = np.ones(f.shape[1])
     fitinfo['theta'] = theta
@@ -66,13 +78,13 @@ def fit(fitinfo, x, theta, f, args=None):
 
     # Find the best size of the reduced space
 
-    numVals = 1 + np.sum(np.cumsum(Valssq) < 0.9995*np.sum(Valssq))
-    numVals = np.maximum(np.minimum(2, fstand.shape[1]), numVals)
+    numpcs = 1 + np.sum(np.cumsum(Valssq) < 0.9995*np.sum(Valssq))
+    numpcs = np.maximum(np.minimum(2, fstand.shape[1]), numpcs)
 
     #
     fitinfo['Cs'] = Vecs * np.sqrt(Valssq)
-    fitinfo['PCs'] = fitinfo['Cs'][:, :numVals]
-    fitinfo['PCsi'] = Vecs[:, :numVals] * np.sqrt(1 / Valssq[:numVals])
+    fitinfo['PCs'] = fitinfo['Cs'][:, :numpcs]
+    fitinfo['PCsi'] = Vecs[:, :numpcs] * np.sqrt(1 / Valssq[:numpcs])
 
     pcaval = fstand @ fitinfo['PCsi']
     fhat = pcaval @ fitinfo['PCs'].T
@@ -80,12 +92,12 @@ def fit(fitinfo, x, theta, f, args=None):
                                   0) * (fitinfo['scale'] ** 2)
 
     # create a dictionary to save the emu info for each PC
-    emulist = [dict() for x in range(0, numVals)]
+    emulist = [dict() for x in range(0, numpcs)]
 
-    print(fitinfo['method'], 'considering ', numVals, 'PCs')
+    print(fitinfo['method'], 'considering ', numpcs, 'PCs')
 
     # fit an emulator for each pc
-    for pcanum in range(0, numVals):
+    for pcanum in range(0, numpcs):
         emulist[pcanum] = emulation_fit(theta, pcaval[:, pcanum])
 
     fitinfo['emulist'] = emulist
@@ -136,17 +148,22 @@ def predict(predinfo, fitinfo, x, theta, args=None):
         predvars[:, k] = infos[k]['sigma2hat'] * \
             (1 + np.exp(infos[k]['hypnug']) - np.sum(r.T * (Rinv @ r.T), 0))
 
+    pctscale = (fitinfo['PCs'].T * fitinfo['scale']).T
+    
     # Transfer back the PCs into the original space
-    predmean = (predvecs @ fitinfo['PCs'][xind, :].T) * \
-        fitinfo['scale'][xind] + fitinfo['offset'][xind]
+    predmean = (predvecs @ pctscale[xind, :].T + fitinfo['offset'][xind]).T
+    predvar = (fitinfo['extravar'][xind] + (predvars @ pctscale[xind, :].T ** 2)).T
 
-    predvar = fitinfo['extravar'][xind] + \
-        (predvars @ (fitinfo['PCs'][xind, :] ** 2).T) * \
-        (fitinfo['scale'][xind] ** 2)
+    CH = (np.sqrt(predvars)[:, :, None] * (pctscale[xind, :].T)[None, :, :])
 
-    predinfo['mean'] = predmean.T
-    predinfo['var'] = predvar.T
+    predinfo['covxhalf'] = np.full((theta.shape[0],
+                                    CH.shape[1],
+                                    x.shape[0]), np.nan)
+    predinfo['covxhalf'][:, :, xind] = CH
+    predinfo['covxhalf'] = predinfo['covxhalf'].transpose((2, 0, 1))
 
+    predinfo['mean'] = predmean
+    predinfo['var'] = predvar
     return
 
 
@@ -404,3 +421,63 @@ def emulation_fit(theta, pcaval, hypstarts=None, hypinds=None):
     subinfo['theta'] = theta
 
     return subinfo
+
+def __standardizef(fitinfo, offset=None, scale=None):
+    "Standardizes f by creating offset, scale and fs."
+    # Extracting from input dictionary
+    f = fitinfo['f']
+
+    if (offset is not None) and (scale is not None):
+        if offset.shape[0] == f.shape[1] and scale.shape[0] == f.shape[1]:
+            if np.any(np.nanmean(np.abs(f-offset)/scale, 1) > 4):
+                offset = None
+                scale = None
+        else:
+            offset = None
+            scale = None
+    if offset is None or scale is None:
+        offset = np.zeros(f.shape[1])
+        scale = np.zeros(f.shape[1])
+        for k in range(0, f.shape[1]):
+            offset[k] = np.nanmean(f[:, k])
+            scale[k] = np.nanstd(f[:, k])
+            if scale[k] == 0:
+                scale[k] = 0.0001
+        # scale = 0.999* scale + 0.001*np.mean(scale)
+
+    # Initializing values
+    fs = np.zeros(f.shape)
+    fs = (f - offset) / scale
+
+    # Assigning new values to the dictionary
+    fitinfo['offset'] = offset
+    fitinfo['scale'] = scale
+    fitinfo['fs'] = fs
+    return
+
+def __PCs(fitinfo):
+    "Creates BLANK."
+    # Extracting from input dictionary
+    f = fitinfo['f']
+    fs = fitinfo['fs']
+    epsilon = fitinfo['epsilon']
+    pct = None
+    pcw = None
+
+    U, S, _ = np.linalg.svd(fs.T, full_matrices=False)
+    Sp = S ** 2 - epsilon
+    pct = U[:, Sp > 0]
+    pcw = np.sqrt(Sp[Sp > 0])
+    pc = fs @ pct
+    pcstdvar = np.zeros((f.shape[0], pct.shape[1]))
+
+    fitinfo['pcw'] = pcw
+    fitinfo['pcto'] = 1*pct
+    fitinfo['pct'] = pct * pcw / np.sqrt(pc.shape[0])
+    fitinfo['pcti'] = pct * (np.sqrt(pc.shape[0]) / pcw)
+    fitinfo['pc'] = pc * (np.sqrt(pc.shape[0]) / pcw)
+    fitinfo['extravar'] = np.mean((fs - fitinfo['pc'] @
+                                   fitinfo['pct'].T) ** 2, 0) *\
+        (fitinfo['scale'] ** 2)
+    fitinfo['pcstdvar'] = 10*pcstdvar
+    return

@@ -164,10 +164,10 @@ f_grav = balldropmodel_grav(xv, theta_grav)
 
 # build an emulator for the linear simulation
 emu_lin = emulator(x=x, theta=theta_lin, f=f_lin, method='PCGPwM') 
-
+emu_lin2 = emulator(x=x, theta=theta_lin, f=f_lin, method='PCGP') 
 # build an emulator for the gravity simulation
 emu_grav = emulator(x=x, theta=theta_grav, f=f_grav, method='PCGPwM')  
-
+emu_grav2 = emulator(x=x, theta=theta_grav, f=f_grav, method='PCGP')  
 
 # %% [markdown]
 # ## Model calibration

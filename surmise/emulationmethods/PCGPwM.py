@@ -214,6 +214,7 @@ def predict(predinfo, fitinfo, x, theta, args={}):
 
     predinfo['mean'] = np.full((x.shape[0], theta.shape[0]), np.nan)
     predinfo['var'] = np.full((x.shape[0], theta.shape[0]), np.nan)
+    
     pctscale = (fitinfo['pct'].T * fitinfo['scale']).T
     predinfo['mean'][xnewind, :] = ((predvecs @ pctscale[xind, :].T) +
                                     fitinfo['offset'][xind]).T
