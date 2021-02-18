@@ -51,54 +51,54 @@ def fit(fitinfo, x, theta, f, args=None):
     fitinfo['f'] = f
     fitinfo['epsilon'] = 1
     # The double underline should be used to represent my local functions
-    #__standardizef(fitinfo)
-    #__PCs(fitinfo)
-    #numpcs = fitinfo['pc'].shape[1]
+    __standardizef(fitinfo)
+    __PCs(fitinfo)
+    numpcs = fitinfo['pc'].shape[1]
     
     
-    fitinfo['offset'] = np.zeros(f.shape[1])
-    fitinfo['scale'] = np.ones(f.shape[1])
-    fitinfo['theta'] = theta
-    fitinfo['x'] = x
+    # fitinfo['offset'] = np.zeros(f.shape[1])
+    # fitinfo['scale'] = np.ones(f.shape[1])
+    # fitinfo['theta'] = theta
+    # fitinfo['x'] = x
 
-    # Standardize the function evaluations f
-    for k in range(0, f.shape[1]):
-        fitinfo['offset'][k] = np.mean(f[:, k])
-        fitinfo['scale'][k] = np.std(f[:, k])
-        if fitinfo['scale'][k] == 0:
-            fitinfo['scale'][k] = 0.0001
-        # fitinfo['scale'][k] = 0.9*np.std(f[:, k]) + 0.1*np.std(f)
+    # # Standardize the function evaluations f
+    # for k in range(0, f.shape[1]):
+    #     fitinfo['offset'][k] = np.mean(f[:, k])
+    #     fitinfo['scale'][k] = np.std(f[:, k])
+    #     if fitinfo['scale'][k] == 0:
+    #         fitinfo['scale'][k] = 0.0001
+    #     # fitinfo['scale'][k] = 0.9*np.std(f[:, k]) + 0.1*np.std(f)
 
-    fstand = (f - fitinfo['offset']) / fitinfo['scale']
+    # fstand = (f - fitinfo['offset']) / fitinfo['scale']
 
-    # Do PCA to reduce the dimension of the function evaluations
-    Vecs, Vals, _ = np.linalg.svd((fstand / np.sqrt(fstand.shape[0])).T)
-    Vals = np.append(Vals, np.zeros(Vecs.shape[1] - Vals.shape[0]))
-    Valssq = (fstand.shape[0]*(Vals**2) + 0.001) / (fstand.shape[0] + 0.001)
+    # # Do PCA to reduce the dimension of the function evaluations
+    # Vecs, Vals, _ = np.linalg.svd((fstand / np.sqrt(fstand.shape[0])).T)
+    # Vals = np.append(Vals, np.zeros(Vecs.shape[1] - Vals.shape[0]))
+    # Valssq = (fstand.shape[0]*(Vals**2) + 0.001) / (fstand.shape[0] + 0.001)
 
-    # Find the best size of the reduced space
+    # # Find the best size of the reduced space
 
-    numpcs = 1 + np.sum(np.cumsum(Valssq) < 0.9995*np.sum(Valssq))
-    numpcs = np.maximum(np.minimum(2, fstand.shape[1]), numpcs)
+    # numpcs = 1 + np.sum(np.cumsum(Valssq) < 0.9995*np.sum(Valssq))
+    # numpcs = np.maximum(np.minimum(2, fstand.shape[1]), numpcs)
 
-    #
-    fitinfo['Cs'] = Vecs * np.sqrt(Valssq)
-    fitinfo['PCs'] = fitinfo['Cs'][:, :numpcs]
-    fitinfo['PCsi'] = Vecs[:, :numpcs] * np.sqrt(1 / Valssq[:numpcs])
+    # #
+    # fitinfo['Cs'] = Vecs * np.sqrt(Valssq)
+    # fitinfo['PCs'] = fitinfo['Cs'][:, :numpcs]
+    # fitinfo['PCsi'] = Vecs[:, :numpcs] * np.sqrt(1 / Valssq[:numpcs])
 
-    pcaval = fstand @ fitinfo['PCsi']
-    fhat = pcaval @ fitinfo['PCs'].T
-    fitinfo['extravar'] = np.mean((fstand - fhat) ** 2,
-                                  0) * (fitinfo['scale'] ** 2)
+    # pcaval = fstand @ fitinfo['PCsi']
+    # fhat = pcaval @ fitinfo['PCs'].T
+    # fitinfo['extravar'] = np.mean((fstand - fhat) ** 2,
+    #                               0) * (fitinfo['scale'] ** 2)
 
     # create a dictionary to save the emu info for each PC
     emulist = [dict() for x in range(0, numpcs)]
-
+    print('hello worasdld')
     print(fitinfo['method'], 'considering ', numpcs, 'PCs')
 
     # fit an emulator for each pc
     for pcanum in range(0, numpcs):
-        emulist[pcanum] = emulation_fit(theta, pcaval[:, pcanum])
+        emulist[pcanum] = emulation_fit(theta, fitinfo['pc'][:, pcanum])
 
     fitinfo['emulist'] = emulist
     return
@@ -148,7 +148,7 @@ def predict(predinfo, fitinfo, x, theta, args=None):
         predvars[:, k] = infos[k]['sigma2hat'] * \
             (1 + np.exp(infos[k]['hypnug']) - np.sum(r.T * (Rinv @ r.T), 0))
 
-    pctscale = (fitinfo['PCs'].T * fitinfo['scale']).T
+    pctscale = (fitinfo['pct'].T * fitinfo['scale']).T
     
     # Transfer back the PCs into the original space
     predmean = (predvecs @ pctscale[xind, :].T + fitinfo['offset'][xind]).T
@@ -468,14 +468,13 @@ def __PCs(fitinfo):
     Sp = S ** 2 - epsilon
     pct = U[:, Sp > 0]
     pcw = np.sqrt(Sp[Sp > 0])
-    pc = fs @ pct
     pcstdvar = np.zeros((f.shape[0], pct.shape[1]))
 
     fitinfo['pcw'] = pcw
     fitinfo['pcto'] = 1*pct
-    fitinfo['pct'] = pct * pcw / np.sqrt(pc.shape[0])
-    fitinfo['pcti'] = pct * (np.sqrt(pc.shape[0]) / pcw)
-    fitinfo['pc'] = pc * (np.sqrt(pc.shape[0]) / pcw)
+    fitinfo['pct'] = pct * pcw / np.sqrt(pct.shape[0])
+    fitinfo['pcti'] = pct * (np.sqrt(pct.shape[0]) / pcw)
+    fitinfo['pc'] = fs @ fitinfo['pcti']
     fitinfo['extravar'] = np.mean((fs - fitinfo['pc'] @
                                    fitinfo['pct'].T) ** 2, 0) *\
         (fitinfo['scale'] ** 2)
