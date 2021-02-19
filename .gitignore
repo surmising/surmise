@@ -1,0 +1,7 @@
+
+*.pyc
+build/
+
+surmise.egg-info/
+
+*.egg
