@@ -93,7 +93,7 @@ def fit(fitinfo, x, theta, f, args=None):
 
     # create a dictionary to save the emu info for each PC
     emulist = [dict() for x in range(0, numpcs)]
-    print('hello worasdld')
+    print('hello world 2')
     print(fitinfo['method'], 'considering ', numpcs, 'PCs')
 
     # fit an emulator for each pc
@@ -350,9 +350,9 @@ def emulation_fit(theta, pcaval, hypstarts=None, hypinds=None):
     '''
     subinfo = {}
 
-    covhyp0 = np.log(np.std(theta, 0)*3) + 1
-    covhypLB = covhyp0 - 2
-    covhypUB = covhyp0 + 3
+    covhyp0 = np.log(np.std(theta, 0)*3) +0
+    covhypLB = covhyp0 - 4
+    covhypUB = covhyp0 + 4
 
     # nughyp0 = -6
     # nughypLB = -8
@@ -360,11 +360,10 @@ def emulation_fit(theta, pcaval, hypstarts=None, hypinds=None):
 
     nughyp0 = -6
     nughypLB = -15
-    nughypUB = 5
+    nughypUB = 1
 
     # Get a random sample of thetas to find the optimized hyperparameters
-    # n_train = np.min((20*theta.shape[1], theta.shape[0]))
-    n_train = np.min((10, theta.shape[0]))
+    n_train = np.min((20*theta.shape[1], theta.shape[0]))
     idx = np.random.choice(theta.shape[0], n_train, replace=False)
 
     # Start constructing the returning dictionary
@@ -377,7 +376,7 @@ def emulation_fit(theta, pcaval, hypstarts=None, hypinds=None):
     subinfo['p'] = covhyp0.shape[0]
     # TO MATT: dont know why we set them like that. we should do it optional
     subinfo['hypregmean'] = np.append(covhyp0, nughyp0)
-    subinfo['hypregstd'] = np.append((covhypUB - covhypLB)/3, 1)
+    subinfo['hypregstd'] = np.append((covhypUB - covhypLB)/3, 4)
 
     # Run an optimizer to find the hyperparameters minimizing the negative
     # likelihood
