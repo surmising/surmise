@@ -19,10 +19,9 @@ interface for calibration, uncertainty quantification, and sensitivity analysis.
 Dependencies
 ~~~~~~~~~~~~
 
-
-.. list-table:: Required dependencies
-     :widths: 25 50 50
-     :header-rows: 1
+.. list-table:: Required dependencies:
+   :widths: 25 50 50
+   :header-rows: 1
 
     * - Python_
       - NumPy_
