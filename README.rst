@@ -19,9 +19,8 @@ interface for calibration, uncertainty quantification, and sensitivity analysis.
 Dependencies
 ~~~~~~~~~~~~
 
-Required dependencies:
 
-.. list-table::
+.. list-table:: Required dependencies
      :widths: 25 50 50
      :header-rows: 1
 
